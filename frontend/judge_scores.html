@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "macros.html" import score_dots, empty_state %}
+
+{% block title %}{{ "Judge scores" if is_own_batch else judge.name or judge.email }}{% endblock %}
+
+{% block content %}
+  {% set criteria_names = [] %}
+  {% for score in scores %}
+    {% for name in score.criteria %}
+      {% if name not in criteria_names %}{% set _ = criteria_names.append(name) %}{% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  <div class="page-head">
+    <div>
+      <h1>{{ "Your scores" if is_own_batch else "Scores of " ~ (judge.name or judge.email) }}</h1>
+      <p class="sub">
+        {{ scores | length }} score{{ '' if scores | length == 1 else 's' }} recorded for
+        {{ judge.name or judge.email }} in {{ event.event_name }}.
+        {% if is_own_batch %}
+          This page and <code>/api/v1/judge/scores</code> only ever return your own
+          batch. Asking for a colleague's is refused in the backend with
+          <code>403</code>.
+        {% endif %}
+      </p>
+    </div>
+    {% if judges %}
+      <div class="actions">
+        <form method="get" class="button-row" data-autosubmit>
+          <label class="faint" for="judge-select">Inspect a judge (organizer)</label>
+          <select id="judge-select" name="judge">
+            <option value="">yourself</option>
+            {% for person in judges %}
+              <option value="{{ person.external_id or person.id }}"
+                      {{ 'selected' if person.id == judge.id }}>
+                {{ person.name or person.email }}
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if scores %}
+    <div class="table-wrap">
+      <table>
+        <caption>
+          Criteria columns come from the data: the fixtures score
+          {{ criteria_names | join(', ') }}. Nothing is averaged or normalized here.
+        </caption>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Team</th>
+            <th>Track</th>
+            {% for name in criteria_names %}<th class="num">{{ name }}</th>{% endfor %}
+            <th class="num">Total</th>
+            <th>Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for score in scores %}
+            <tr>
+              <td>
+                <a href="{{ url_for('pages.project_detail', project_id=score.project_id) }}">{{ score.project_title }}</a>
+                {% if score.project_external_id %}<div class="faint mono">{{ score.project_external_id }}</div>{% endif %}
+              </td>
+              <td>{{ score.team_name }}</td>
+              <td>{{ score.track_name or "—" }}</td>
+              {% for name in criteria_names %}
+                <td class="num">
+                  {% if name in score.criteria %}
+                    {{ score.criteria[name] }} {{ score_dots(score.criteria[name]) }}
+                  {% else %}
+                    <span class="faint">—</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+              <td class="num"><strong>{{ score.total }}</strong></td>
+              <td>{{ score.comment or "" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("No scores recorded",
+                   "This judge has no rows in the scores table. The fixture file leaves most judge and project pairs empty on purpose.",
+                   "Back to overview", url_for('pages.home')) }}
+  {% endif %}
+
+  <section class="card" style="margin-top:1rem">
+    <h2>What is not built yet</h2>
+    <p class="small muted">
+      Reading a batch with role isolation is here. Judge invitation and
+      assignment, an organizer configurable weighted rubric, a scoring form,
+      cross judge normalization and the progress dashboard are T2 work and are
+      <strong>not claimed</strong>. The 126 score rows in the database came from
+      <code>fixtures.json</code>, not from judges typing into this portal.
+    </p>
+    <p class="small faint" style="margin-bottom:0">
+      Isolation, as curl sees it:
+      <code>GET /api/v1/judge/scores?judge=jdg_01</code> with judge
+      <code>jdg_02</code>'s token returns <code>403</code>, and the refusal is
+      written to the <a href="{{ url_for('pages.audit_page') }}">audit trail</a>.
+    </p>
+  </section>
+{% endblock %}

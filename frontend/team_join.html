@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Join {{ team.name }}{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>You are invited to join {{ team.name }}</h1>
+      <p class="sub">
+        {{ team.members | length }} of {{ max_team_size }} members
+        · {{ event.event_name if event else "" }}
+      </p>
+    </div>
+  </div>
+
+  <div class="split">
+    <section class="card">
+      <h2>Who is on this team</h2>
+      <ul class="list-plain">
+        {% for member in team.members %}
+          <li>
+            <strong>{{ member.name or member.email }}</strong>
+            {% if member.is_lead %}<span class="chip">lead</span>{% endif %}
+            {% if member.name %}<div class="faint">{{ member.email }}</div>{% endif %}
+          </li>
+        {% else %}
+          <li class="faint">Nobody yet.</li>
+        {% endfor %}
+      </ul>
+
+      {% if my_team %}
+        <div class="notice" style="margin-top:1rem">
+          You are already on <strong>{{ my_team.name }}</strong>. Leave that team
+          before joining this one — the backend refuses a second membership with
+          <code>409</code>.
+        </div>
+      {% elif team.members | length >= max_team_size %}
+        <div class="notice closed" style="margin-top:1rem">
+          This team is full ({{ max_team_size }} members). Joining is refused
+          with <code>409</code>.
+        </div>
+      {% else %}
+        <form method="post" action="{{ url_for('pages.join_by_link_confirm', code=code) }}"
+              style="margin-top:1rem" class="button-row">
+          <button type="submit">Join {{ team.name }}</button>
+          <a class="button ghost" href="{{ url_for('pages.teams_page') }}">Not now</a>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>How invite links work</h2>
+      <p class="small muted">
+        The code in the url is the whole credential: anybody holding it can join
+        this team until it is full. Codes are random
+        (<code>{{ code[:4] }}…</code>, {{ code | length }} characters), never
+        reused, and only shown to members and staff.
+      </p>
+      <dl class="kv">
+        <dt>Code</dt>
+        <dd class="mono">{{ code }}</dd>
+        <dt>Event</dt>
+        <dd>{{ event.event_name if event else "—" }}</dd>
+        <dt>Signed in as</dt>
+        <dd>{{ current_user.email }}</dd>
+      </dl>
+    </section>
+  </div>
+{% endblock %}

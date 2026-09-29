@@ -1,3 +1,10 @@
 .venv/
-
 __pycache__/
+*.pyc
+
+# The SQLite file is generated: `docker compose up` or `python3 backend/main.py`
+# creates it and imports fixtures.json into it on first boot.
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm

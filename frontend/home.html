@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% from "macros.html" import stat_card, project_card, empty_state, role_badge %}
+
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+  {% if not event %}
+    <div class="page-head">
+      <div>
+        <h1>No event is running</h1>
+        <p class="sub">
+          The database has no event yet. Import the shared fixtures with
+          <code>python3 backend/seed.py</code>, or create an event below.
+        </p>
+      </div>
+    </div>
+    {{ empty_state("Empty portal", "Create an event with dates, tracks and prizes to get started.",
+                   "Create an event" if current_user.is_authenticated and current_user.has_role('admin','organizer') else None,
+                   url_for('pages.events_page') if current_user.is_authenticated and current_user.has_role('admin','organizer') else None) }}
+  {% else %}
+    <div class="page-head">
+      <div>
+        <h1>{{ event.event_name }}</h1>
+        <p class="sub">{{ event.description or "No description was set for this event." }}</p>
+      </div>
+      <div class="actions">
+        {% if current_user.is_authenticated and current_user.has_role('participant', 'admin', 'organizer') %}
+          <a class="button" href="{{ url_for('pages.new_submission') }}">Submit a project</a>
+        {% endif %}
+        <a class="button ghost" href="{{ url_for('pages.gallery') }}">Browse the gallery</a>
+      </div>
+    </div>
+
+    <div class="grid cols-4">
+      {{ stat_card("Submitted projects", stats.submitted, stats.drafts ~ " draft" ~ ("s" if stats.drafts != 1 else "") ~ " in progress") }}
+      {{ stat_card("Teams", stats.teams, stats.participants ~ " participants") }}
+      {{ stat_card("Tracks", stats.tracks, stats.prizes ~ " prize" ~ ("s" if stats.prizes != 1 else "")) }}
+      {{ stat_card("Scores recorded", stats.scores, stats.judges_with_scores ~ " of " ~ stats.judges ~ " judges have scored") }}
+    </div>
+
+    <div class="split" style="margin-top:1rem">
+      <div class="stack">
+        <section class="card">
+          <div class="card-head">
+            <h2>Latest submissions</h2>
+            <span class="right">
+              {{ stats.submitted }} submitted · <a href="{{ url_for('pages.gallery') }}">see all</a>
+            </span>
+          </div>
+          {% if latest %}
+            <div class="project-grid">
+              {% for project in latest %}{{ project_card(project) }}{% endfor %}
+            </div>
+          {% else %}
+            {{ empty_state("Nothing submitted yet", "Submissions appear here as soon as a team submits a project.") }}
+          {% endif %}
+        </section>
+
+        {% if current_user.is_authenticated and current_user.has_role('participant', 'admin', 'organizer') %}
+          <section class="card">
+            <div class="card-head">
+              <h2>Your team</h2>
+              <span class="right">
+                <a href="{{ url_for('pages.teams_page') }}">all teams</a>
+              </span>
+            </div>
+            {% if my_team %}
+              <p>
+                <a href="{{ url_for('pages.team_detail', team_id=my_team.id) }}"><strong>{{ my_team.name }}</strong></a>
+                · {{ my_team.members | length }} member{{ '' if my_team.members | length == 1 else 's' }}
+                {% if my_team.is_lead %}<span class="chip">you are the lead</span>{% endif %}
+              </p>
+              <ul class="list-plain">
+                {% for member in my_team.members %}
+                  <li>
+                    <strong>{{ member.name or member.email }}</strong>
+                    {% if member.is_lead %}<span class="chip">lead</span>{% endif %}
+                    {% if member.name %}<span class="faint">{{ member.email }}</span>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+              {% if my_projects %}
+                <h3 style="margin-top:1rem">Your submissions</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr><th>Title</th><th>Track</th><th>Status</th><th>Updated</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {% for project in my_projects %}
+                        <tr>
+                          <td><a href="{{ url_for('pages.project_detail', project_id=project.id) }}">{{ project.title }}</a></td>
+                          <td>{{ project.track_name or "—" }}</td>
+                          <td><span class="pill pill-{{ project.status }}">{{ project.status }}</span></td>
+                          <td class="nowrap faint">{{ project.updated_at_text }}</td>
+                          <td class="nowrap"><a href="{{ url_for('pages.edit_submission', project_id=project.id) }}">edit</a></td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            {% else %}
+              {{ empty_state("You are not on a team",
+                             "Create one, or join a teammate with an invite link. A team is required before you can submit a project.",
+                             "Go to teams", url_for('pages.teams_page')) }}
+            {% endif %}
+          </section>
+        {% endif %}
+
+        {% if current_user.is_authenticated and current_user.has_role('judge') %}
+          <section class="card">
+            <div class="card-head">
+              <h2>Your judging batch</h2>
+              <span class="right"><a href="{{ url_for('pages.judge_scores_page') }}">open</a></span>
+            </div>
+            {% if my_scores %}
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Project</th><th>Team</th><th>Criteria</th><th>Total</th></tr></thead>
+                  <tbody>
+                    {% for score in my_scores %}
+                      <tr>
+                        <td>{{ score.project_title }}</td>
+                        <td>{{ score.team_name }}</td>
+                        <td class="faint">
+                          {% for name, value in score.criteria.items() %}{{ name }} {{ value }}{% if not loop.last %} · {% endif %}{% endfor %}
+                        </td>
+                        <td class="num">{{ score.total }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <p class="faint" style="margin-top:.6rem">
+                Your own scores only. Another judge's batch is refused by the
+                backend, not hidden by the template.
+              </p>
+            {% else %}
+              {{ empty_state("No scores recorded for you",
+                             "Scores imported from fixtures.json appear here. Judge assignment and scoring forms are T2 work and are not built yet.") }}
+            {% endif %}
+          </section>
+        {% endif %}
+      </div>
+
+      <div class="stack">
+        <section class="card">
+          <h2>Submission window</h2>
+          <p>
+            <span class="pill pill-{{ window.state }}">{{ window.state }}</span>
+          </p>
+          <dl class="kv">
+            <dt>Opens</dt>
+            <dd>{{ window.opens_at | datetime or "not set (already open)" }}</dd>
+            <dt>Closes</dt>
+            <dd>{{ window.closes_at | datetime or "not set (stays open)" }}</dd>
+            <dt>Now (UTC)</dt>
+            <dd>{{ utc_now() }}</dd>
+          </dl>
+          <p class="faint" style="margin-top:.6rem">
+            {{ window.message }}
+            {% if not window.open %}
+              New submissions and edits are refused with <code>403</code> by the
+              backend from that instant onwards.
+            {% endif %}
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Tracks</h2>
+          {% if tracks %}
+            {% set max_count = tracks | map(attribute='project_count') | max %}
+            <div class="bar-chart">
+              {% for track in tracks %}
+                <div class="bar-row">
+                  <a href="{{ url_for('pages.gallery', track=track.external_id) }}">{{ track.name }}</a>
+                  <span class="bar-track">
+                    <span class="bar-fill" style="width: {{ (track.project_count / max_count * 100) | round | int if max_count else 0 }}%"></span>
+                  </span>
+                  <span class="num">{{ track.project_count }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            {{ empty_state("No tracks", "Add tracks when you create an event.") }}
+          {% endif %}
+        </section>
+
+        <section class="card">
+          <h2>Prizes</h2>
+          {% if prizes %}
+            <ul class="prize-list">
+              {% for prize in prizes %}
+                <li>
+                  <span>
+                    <strong>{{ prize.name }}</strong>
+                    {% if prize.detail %}<span class="faint"> — {{ prize.detail }}</span>{% endif %}
+                  </span>
+                  {% if prize.amount %}<span class="amount">{{ prize.amount }}</span>{% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {{ empty_state("No prizes configured",
+                           "The fixture file does not contain prizes. An organizer can add them on the events page.") }}
+          {% endif %}
+        </section>
+
+        {% if current_user.is_authenticated and current_user.has_role('admin', 'organizer') %}
+          <section class="card">
+            <div class="card-head">
+              <h2>Organizer</h2>
+              <span class="right"><a href="{{ url_for('pages.audit_page') }}">full audit trail</a></span>
+            </div>
+            <div class="button-row">
+              <a class="button ghost" href="{{ url_for('pages.export_page') }}">Export CSV</a>
+              <a class="button ghost" href="{{ url_for('pages.events_page') }}">Manage events</a>
+              <a class="button ghost" href="{{ url_for('pages.gallery', duplicates=1) }}">
+                View {{ stats.duplicates_flagged }} flagged duplicate{{ '' if stats.duplicates_flagged == 1 else 's' }}
+              </a>
+            </div>
+            {% if audit %}
+              <h3 style="margin-top:1rem">Recent activity</h3>
+              <ul class="list-plain">
+                {% for entry in audit %}
+                  <li>
+                    <code class="faint">{{ entry.action }}</code>
+                    <div class="small">{{ entry.detail }}</div>
+                    <div class="faint">{{ entry.created_at }}{% if entry.actor_email %} · {{ entry.actor_email }}{% endif %}</div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </section>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

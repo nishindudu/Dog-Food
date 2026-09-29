@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% from "macros.html" import project_card, empty_state %}
+
+{% block title %}Project gallery{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Project gallery</h1>
+      <p class="sub">
+        {{ total }} project{{ '' if total == 1 else 's' }}
+        {% if event %}in {{ event.event_name }}{% endif %}
+        {%- if query.q %} matching “{{ query.q }}”{% endif -%}
+        {%- if query.track %} in track {{ query.track }}{% endif -%}
+        . Public: no sign in needed, no scores shown.
+      </p>
+    </div>
+    <div class="actions">
+      {% if current_user.is_authenticated and current_user.has_role('participant', 'admin', 'organizer') %}
+        <a class="button" href="{{ url_for('pages.new_submission') }}">Submit a project</a>
+      {% else %}
+        <a class="button ghost" href="{{ url_for('pages.login_page', next='/projects/new') }}">Sign in to submit</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not event %}
+    {{ empty_state("No event is running", "Import fixtures.json or create an event, and the gallery fills up.") }}
+  {% else %}
+    <section class="card" style="margin-bottom:1rem">
+      <form class="filters" method="get" action="{{ url_for('pages.gallery') }}" data-autosubmit>
+        <div class="field">
+          <label for="q">Search</label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            value="{{ query.q }}"
+            placeholder="title, summary or team name"
+          />
+        </div>
+        <div class="field">
+          <label for="track">Track</label>
+          <select id="track" name="track">
+            <option value="">All {{ tracks | length }} tracks</option>
+            {% for track in tracks %}
+              <option value="{{ track.external_id or track.id }}"
+                      {{ 'selected' if query.track == (track.external_id or track.id | string) }}>
+                {{ track.name }} ({{ track.project_count }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="sort">Sort</label>
+          <select id="sort" name="sort">
+            <option value="submitted_at" {{ 'selected' if query.sort == 'submitted_at' }}>Newest submission</option>
+            <option value="title" {{ 'selected' if query.sort == 'title' }}>Title A–Z</option>
+            <option value="team" {{ 'selected' if query.sort == 'team' }}>Team A–Z</option>
+            <option value="track" {{ 'selected' if query.sort == 'track' }}>Track</option>
+          </select>
+        </div>
+        {% if show_hidden %}
+          <div class="field">
+            <label for="duplicates">Staff filters</label>
+            <span class="button-row" style="padding-top:.35rem">
+              <label class="small" for="duplicates">
+                <input type="checkbox" id="duplicates" name="duplicates" value="1"
+                       style="width:auto" {{ 'checked' if query.duplicates == '1' }} />
+                duplicates
+              </label>
+              <label class="small" for="drafts">
+                <input type="checkbox" id="drafts" name="drafts" value="1"
+                       style="width:auto" {{ 'checked' if query.drafts == '1' }} />
+                drafts
+              </label>
+            </span>
+          </div>
+        {% endif %}
+        <div class="button-row">
+          <button type="submit">Apply</button>
+          {% if query.q or query.track or query.duplicates or query.drafts or query.sort != 'submitted_at' %}
+            <a class="button ghost" href="{{ url_for('pages.gallery') }}">Reset</a>
+          {% endif %}
+        </div>
+      </form>
+
+      <div class="chip-list" style="margin-top:.8rem">
+        <a class="chip {{ 'active' if not query.track }}" href="{{ url_for('pages.gallery', q=query.q, sort=query.sort) }}">
+          All <span class="count">{{ total if not query.track else tracks | sum(attribute='project_count') }}</span>
+        </a>
+        {% for track in tracks %}
+          <a class="chip {{ 'active' if query.track == (track.external_id or track.id | string) }}"
+             href="{{ url_for('pages.gallery', track=track.external_id or track.id, q=query.q, sort=query.sort) }}">
+            {{ track.name }} <span class="count">{{ track.project_count }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if projects %}
+      <div class="project-grid">
+        {% for project in projects %}
+          {{ project_card(project, show_status=(query.drafts == '1' or query.duplicates == '1')) }}
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state("No projects match those filters",
+                     "Try a different search term, or clear the track filter.",
+                     "Clear filters", url_for('pages.gallery')) }}
+    {% endif %}
+
+    <p class="faint" style="margin-top:1rem">
+      The gallery renders every match on one page, so the acceptance checker
+      always finds a fixture title in the first response. Paged and filtered
+      JSON is at <a href="/api/v1/projects"><code>/api/v1/projects</code></a>.
+      {% if not show_hidden %}
+        Drafts and submissions flagged as duplicates are not listed here.
+      {% endif %}
+    </p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty_state, role_badge %}
+
+{% block title %}Teams{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Teams</h1>
+      <p class="sub">
+        {{ teams | length }} team{{ '' if teams | length == 1 else 's' }} in
+        {{ event.event_name if event else "this event" }}. Teams are formed with
+        an invite link, and a submission belongs to a team.
+      </p>
+    </div>
+    <div class="actions">
+      <form method="get" action="{{ url_for('pages.teams_page') }}" class="button-row" data-autosubmit>
+        <input type="search" name="q" value="{{ query.q }}" placeholder="team or member email"
+               aria-label="Search teams" style="min-width:220px" />
+        <button type="submit" class="ghost">Search</button>
+      </form>
+    </div>
+  </div>
+
+  {% if current_user.is_authenticated and current_user.has_role('participant', 'admin', 'organizer') %}
+    <div class="split" style="margin-bottom:1rem">
+      <section class="card">
+        <h2>Your team</h2>
+        {% if my_team %}
+          <p>
+            <a href="{{ url_for('pages.team_detail', team_id=my_team.id) }}"><strong>{{ my_team.name }}</strong></a>
+            · {{ my_team.members | length }} of {{ max_team_size }} members
+          </p>
+          <div class="field">
+            <label for="invite-link">Invite link — share it with your teammates</label>
+            <div class="copy-target">
+              <input id="invite-link" type="text" readonly
+                     value="{{ url_for('pages.join_by_link', code=my_team.invite_code, _external=True) }}" />
+              <button type="button" class="ghost" data-copy="#invite-link">Copy</button>
+            </div>
+            <span class="help">
+              Anyone with this link can join until the team reaches
+              {{ max_team_size }} members. It is only shown to members and to staff.
+            </span>
+          </div>
+        {% else %}
+          <p class="muted">You are not on a team yet.</p>
+          <form class="form-grid" method="post" action="{{ url_for('pages.create_team') }}">
+            <div class="field">
+              <label for="team-name">Create a team</label>
+              <input id="team-name" name="name" type="text" required maxlength="60"
+                     placeholder="Nightshift" />
+              <span class="help">You become the team lead and get an invite link.</span>
+            </div>
+            <div class="button-row"><button type="submit">Create team</button></div>
+          </form>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2>Join with an invite link</h2>
+        <form class="form-grid" method="post" action="{{ url_for('pages.join_team') }}">
+          <div class="field">
+            <label for="invite-code">Invite code</label>
+            <input id="invite-code" name="invite_code" type="text" required
+                   placeholder="the code at the end of the link" />
+            <span class="help">
+              Opening the link itself works too: it lands on a confirmation page.
+            </span>
+          </div>
+          <div class="button-row"><button type="submit" class="ghost">Join team</button></div>
+        </form>
+      </section>
+    </div>
+  {% endif %}
+
+  {% if teams %}
+    <div class="table-wrap">
+      <table>
+        <caption>
+          {{ teams | length }} team{{ '' if teams | length == 1 else 's' }}
+          {%- if query.q %} matching “{{ query.q }}”{% endif %}
+        </caption>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Members</th>
+            <th class="num">Size</th>
+            <th class="num">Submissions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for team in teams %}
+            <tr>
+              <td>
+                <a href="{{ url_for('pages.team_detail', team_id=team.id) }}"><strong>{{ team.name }}</strong></a>
+                {% if team.external_id %}<span class="faint mono">{{ team.external_id }}</span>{% endif %}
+              </td>
+              <td>
+                {% for member in team.members %}
+                  <span class="nowrap">{{ member.name or member.email }}{% if member.is_lead %} <span class="chip">lead</span>{% endif %}</span>
+                  {%- if not loop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+              <td class="num">{{ team.member_count }}</td>
+              <td class="num">{{ team.project_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("No teams found",
+                   "Nobody has formed a team yet, or nothing matches that search.",
+                   "Clear search" if query.q else None,
+                   url_for('pages.teams_page') if query.q else None) }}
+  {% endif %}
+{% endblock %}

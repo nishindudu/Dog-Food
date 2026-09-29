@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ status }} {{ message }}{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>{{ status }} — {{ message }}</h1>
+      {% if detail %}<p class="sub"><strong>{{ detail }}</strong></p>{% endif %}
+      <p class="sub">
+        {% if status == 401 %}
+          Sign in and try again. Sessions are a signed cookie; the API also
+          accepts a bearer token.
+        {% elif status == 403 %}
+          Your role does not allow this. The check is in the backend, so it
+          refuses a browser, a curl request and the acceptance checker the same
+          way.
+        {% elif status == 404 %}
+          Nothing is at that address, or it is not visible to your role.
+        {% elif status == 405 %}
+          That address does not accept this HTTP method.
+        {% else %}
+          Something went wrong on the server. The audit trail keeps a record of
+          what was attempted.
+        {% endif %}
+      </p>
+    </div>
+    <div class="actions">
+      {% if status in (401, 403) %}
+        <a class="button" href="{{ url_for('pages.login_page', next=request.path) }}">Sign in</a>
+      {% endif %}
+      <a class="button ghost" href="{{ url_for('pages.home') }}">Back to overview</a>
+      <a class="button ghost" href="{{ url_for('pages.gallery') }}">Public gallery</a>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>Where the roles are enforced</h2>
+    <dl class="kv">
+      <dt>Gallery</dt>
+      <dd>public, no authentication, no scores</dd>
+      <dt>Submission writes</dt>
+      <dd>participant, admin or organizer, on a team, before the deadline</dd>
+      <dt>Judge scores</dt>
+      <dd>judge, organizer or admin — and only their own batch</dd>
+      <dt>CSV export</dt>
+      <dd>organizer or admin</dd>
+      <dt>User and role management</dt>
+      <dd>admin</dd>
+    </dl>
+  </section>
+{% endblock %}

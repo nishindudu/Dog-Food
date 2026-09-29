@@ -1,0 +1,12 @@
+# Build context: keep the image small and never bake a database into it.
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+data/*.db
+data/*.db-journal
+acceptance-report.txt
+.dockerignore
+Dockerfile
+docker-compose.yml

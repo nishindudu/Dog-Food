@@ -1,0 +1,49 @@
+# One command to a seeded, working portal:
+#
+#     docker compose up --build
+#     open http://localhost:8080
+#     python3 run.py .dogfood.toml > acceptance-report.txt
+#
+# No cloud accounts, no hosted database, no external API. The container
+# imports fixtures.json into a SQLite file on first boot and prints the
+# acceptance headers to the log.
+
+services:
+  portal:
+    build: .
+    image: dog-food-portal
+    container_name: dogfood-portal
+    ports:
+      - "8080:8080"
+    environment:
+      DOGFOOD_HOST: 0.0.0.0
+      PORT: "8080"
+      # Left at the built-in default on purpose: the bearer tokens committed
+      # in .dogfood.toml are signed with it, so `docker compose up` and then
+      # `python3 run.py .dogfood.toml` work with no extra steps.
+      #
+      # Before you expose this portal to a network, set your own key and
+      # regenerate the tokens:
+      #   DOGFOOD_SECRET_KEY=... python3 backend/seed.py --write-config
+      # DOGFOOD_SECRET_KEY: "set-me-in-production"
+      # DOGFOOD_SEED_PASSWORD: "change-me"
+      # DOGFOOD_STATIC_TOKENS: "1"
+      # DOGFOOD_MAX_TEAM_SIZE: "4"
+    volumes:
+      # The SQLite file survives a restart. Delete the volume for a clean
+      # re-import:  docker compose down -v
+      - portal-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).status == 200 else 1)"
+      interval: 15s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  portal-data:

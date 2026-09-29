@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "macros.html" import project_card, empty_state %}
+
+{% block title %}{{ team.name }}{% endblock %}
+
+{% block content %}
+  <nav class="faint" aria-label="Breadcrumb" style="margin-bottom:.6rem">
+    <a href="{{ url_for('pages.teams_page') }}">Teams</a> › {{ team.name }}
+  </nav>
+
+  <div class="page-head">
+    <div>
+      <h1>{{ team.name }}</h1>
+      <p class="sub">
+        {{ team.members | length }} member{{ '' if team.members | length == 1 else 's' }}
+        · {{ projects | length }} submission{{ '' if projects | length == 1 else 's' }}
+        {% if team.external_id %} · <span class="mono faint">{{ team.external_id }}</span>{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="stack">
+      <section class="card">
+        <h2>Submissions</h2>
+        {% if projects %}
+          <div class="project-grid">
+            {% for project in projects %}{{ project_card(project, show_status=True) }}{% endfor %}
+          </div>
+        {% else %}
+          {{ empty_state("Nothing submitted yet",
+                         "This team has not submitted a project, or its submissions are still drafts that you are not allowed to see.") }}
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card">
+        <h2>Members</h2>
+        <ul class="list-plain">
+          {% for member in team.members %}
+            <li>
+              <strong>{{ member.name or member.email }}</strong>
+              {% if member.is_lead %}<span class="chip">lead</span>{% endif %}
+              <div class="faint">
+                {% if member.name %}{{ member.email }} · {% endif %}joined {{ member.joined_at | datetime }}
+              </div>
+            </li>
+          {% else %}
+            <li class="faint">No members recorded.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% if can_see_code %}
+        <section class="card">
+          <h2>Invite link</h2>
+          <div class="field">
+            <label for="team-invite">Share with teammates</label>
+            <div class="copy-target">
+              <input id="team-invite" type="text" readonly
+                     value="{{ url_for('pages.join_by_link', code=team.invite_code, _external=True) }}" />
+              <button type="button" class="ghost" data-copy="#team-invite">Copy</button>
+            </div>
+            <span class="help">Visible to members and staff only.</span>
+          </div>
+        </section>
+      {% else %}
+        <section class="card">
+          <h2>Invite link</h2>
+          <p class="small muted">
+            An invite code is a capability, so it is only shown to members of
+            this team and to organizers. Ask a teammate for the link.
+          </p>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
