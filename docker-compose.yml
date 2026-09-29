@@ -11,7 +11,7 @@
 services:
   portal:
     build: .
-    image: dog-food-portal
+    image: dogfood
     container_name: dogfood-portal
     ports:
       - "8080:8080"

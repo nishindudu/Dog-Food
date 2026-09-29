@@ -20,7 +20,9 @@ COPY . .
 RUN useradd --create-home --uid 10001 dogfood \
     && mkdir -p /app/data \
     && chown -R dogfood:dogfood /app/data
-USER dogfood
+# USER dogfood
+
+RUN touch /app/data/events.db
 
 EXPOSE 8080
 
