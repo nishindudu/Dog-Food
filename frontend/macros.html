@@ -1,0 +1,79 @@
+{# Macros shared by every page. Pure presentation: all values are passed in
+   from a view that read them out of SQLite. #}
+
+{% macro role_badge(role) -%}
+  <span class="badge badge-{{ role }}">{{ role }}</span>
+{%- endmacro %}
+
+{% macro status_pill(status) -%}
+  <span class="pill pill-{{ status }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro window_pill(window) -%}
+  {% if window %}
+    <span class="pill pill-{{ window.state }}">{{ window.message }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro score_dots(value, maximum=5) -%}
+  <span class="score-dots" title="{{ value }} of {{ maximum }}">
+    {% for i in range(maximum) %}<i class="{{ 'on' if i < value else '' }}"></i>{% endfor %}
+  </span>
+{%- endmacro %}
+
+{% macro empty_state(title, body, action_label=None, action_url=None) -%}
+  <div class="empty">
+    <strong>{{ title }}</strong>
+    {{ body }}
+    {% if action_label and action_url %}
+      <p style="margin-top:.7rem"><a class="button ghost" href="{{ action_url }}">{{ action_label }}</a></p>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro stat_card(label, value, hint=None) -%}
+  <div class="stat">
+    <div class="label">{{ label }}</div>
+    <div class="value">{{ value }}</div>
+    {% if hint %}<div class="hint">{{ hint }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro project_card(project, show_status=False) -%}
+  <article class="project-card {{ 'flag-duplicate' if project.duplicate_of else '' }}">
+    <div class="row">
+      {% if project.track_name %}<span class="chip">{{ project.track_name }}</span>{% endif %}
+      {% if show_status %}{{ status_pill(project.status) }}{% endif %}
+      {% if project.duplicate_of %}
+        <span class="pill pill-upcoming" title="Same team and repository as project {{ project.duplicate_of }}">duplicate flagged</span>
+      {% endif %}
+    </div>
+    <h3><a href="{{ url_for('pages.project_detail', project_id=project.id) }}">{{ project.title }}</a></h3>
+    <p class="summary">{{ project.summary or "No summary was given." }}</p>
+    <div class="meta">
+      <span>Team <strong>{{ project.team_name }}</strong></span>
+      <span aria-hidden="true">·</span>
+      <span>{{ project.team_member_count }} member{{ '' if project.team_member_count == 1 else 's' }}</span>
+      {% if project.submitted_at %}
+        <span aria-hidden="true">·</span>
+        <span>submitted {{ project.submitted_at_text }}</span>
+      {% endif %}
+      {% if project.repo_url %}
+        <span aria-hidden="true">·</span>
+        <a href="{{ project.repo_url }}" rel="noopener noreferrer nofollow">repository</a>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{% macro flashes() -%}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+{%- endmacro %}

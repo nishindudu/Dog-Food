@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "macros.html" import role_badge, empty_state %}
+
+{% block title %}Users and roles{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Users and roles</h1>
+      <p class="sub">
+        {{ users | length }} account{{ '' if users | length == 1 else 's' }}.
+        Five roles: <code>visitor</code> is anybody not signed in, the other four
+        are rows in the <code>users</code> table with a CHECK constraint on the
+        column.
+      </p>
+    </div>
+    <div class="actions">
+      <form method="get" class="button-row" action="{{ url_for('pages.admin_users') }}" data-autosubmit>
+        <input type="search" name="q" value="{{ query.q }}" placeholder="email or name" aria-label="Search users" />
+        <select name="role" aria-label="Filter by role">
+          <option value="">every role</option>
+          {% for role in roles %}
+            <option value="{{ role }}" {{ 'selected' if query.role == role }}>{{ role }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="ghost">Filter</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="split">
+    <section class="card">
+      <div class="table-wrap" style="border:none">
+        <table>
+          <thead>
+            <tr><th>User</th><th>Role</th><th>Active</th><th>Created</th><th>Change role</th></tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr>
+                <td>
+                  <strong>{{ user.name or user.email }}</strong>
+                  {% if user.name %}<div class="faint">{{ user.email }}</div>{% endif %}
+                  {% if user.external_id %}<div class="faint mono">{{ user.external_id }}</div>{% endif %}
+                </td>
+                <td>{{ role_badge(user.role) }}</td>
+                <td>{{ "yes" if user.is_active else "no" }}</td>
+                <td class="nowrap faint">{{ user.created_at | datetime }}</td>
+                <td>
+                  <form method="post" class="button-row"
+                        action="{{ url_for('pages.admin_set_role', user_id=user.id) }}">
+                    <select name="role" aria-label="Role for {{ user.email }}" style="min-width:130px">
+                      {% for role in roles %}
+                        <option value="{{ role }}" {{ 'selected' if role == user.role }}>{{ role }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="ghost">Save</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="faint">No users match that filter.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="card">
+        <h2>Add a user</h2>
+        <form class="form-grid" method="post" action="{{ url_for('pages.admin_users') }}">
+          <div class="field">
+            <label for="new-email">Email</label>
+            <input id="new-email" name="email" type="email" required placeholder="judge@example.org" />
+          </div>
+          <div class="field">
+            <label for="new-name">Name</label>
+            <input id="new-name" name="name" type="text" maxlength="120" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label for="new-role">Role</label>
+            <select id="new-role" name="role" required>
+              {% for role in roles %}<option value="{{ role }}">{{ role }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="new-password">Password</label>
+            <input id="new-password" name="password" type="password" required minlength="8" />
+            <span class="help">At least 8 characters. Stored as a werkzeug scrypt hash.</span>
+          </div>
+          <div class="button-row"><button type="submit">Create user</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Role counts</h2>
+        <dl class="kv">
+          {% for role in roles %}
+            <dt>{{ role }}</dt>
+            <dd>{{ users | selectattr('role', 'equalto', role) | list | length }} in this view</dd>
+          {% endfor %}
+        </dl>
+        <p class="faint" style="margin-top:.6rem">
+          Role checks live in <code>auth.roles_required</code> and in the view
+          functions. No template decides who is allowed to do what.
+        </p>
+      </section>
+    </div>
+  </div>
+{% endblock %}

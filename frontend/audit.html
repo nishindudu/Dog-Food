@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty_state %}
+
+{% block title %}Audit trail{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Audit trail</h1>
+      <p class="sub">
+        {{ entries | length }} most recent entries. Append only: nothing here is
+        edited or deleted by the portal, and every refused action is recorded
+        with the reason.
+      </p>
+    </div>
+    <div class="actions">
+      <a class="button ghost" href="/api/v1/audit?limit=500">JSON</a>
+      <a class="button ghost" href="{{ url_for('pages.export_page') }}">Export results</a>
+    </div>
+  </div>
+
+  {% if entries %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>When (UTC)</th><th>Action</th><th>Actor</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td class="nowrap mono faint">{{ entry.created_at | datetime }}</td>
+              <td><code>{{ entry.action }}</code></td>
+              <td>{{ entry.actor_email or "—" }}</td>
+              <td>{{ entry.detail }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("Nothing recorded yet", "Actions write a line here as soon as anybody uses the portal.") }}
+  {% endif %}
+
+  <section class="card" style="margin-top:1rem">
+    <h2>What gets written</h2>
+    <ul class="small muted" style="margin:0;padding-left:1.1rem">
+      <li><code>submission.created</code>, <code>submission.drafted</code>, <code>submission.updated</code></li>
+      <li><code>submission.refused_create</code>, <code>submission.refused_edit</code> — a write after the deadline, with the reason</li>
+      <li><code>access.peer_scores_refused</code> — a judge asking for another judge's scores</li>
+      <li><code>team.created</code>, <code>team.joined</code></li>
+      <li><code>event.created</code>, <code>event.deleted</code>, <code>event.set_primary</code>, <code>track.added</code>, <code>prize.added</code></li>
+      <li><code>user.created</code>, <code>user.role_changed</code>, <code>auth.login</code></li>
+      <li><code>export.csv</code>, <code>import.duplicate_flagged</code>, <code>seed.*</code></li>
+    </ul>
+  </section>
+{% endblock %}

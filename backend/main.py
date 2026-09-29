@@ -1,120 +1,94 @@
-from functools import wraps
-from flask import Flask, render_template, request
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from flask_login import (
-    LoginManager,
-    UserMixin,
-    AnonymousUserMixin,
-    current_user,
-    login_user,
-    logout_user,
-    login_required,
+"""Dog-Food portal: application entry point.
+
+Run it:
+
+    python3 backend/seed.py     # optional, the app seeds itself on boot
+    python3 backend/main.py     # http://localhost:8080
+
+What was here before is still here: the login/logout/session routes and the
+three event routes keep their urls, their payloads and their decorators. The
+role model, tokens and ``roles_required`` moved to ``auth.py`` unchanged so
+``pages.py`` and ``api.py`` can share them; new HTML views live in
+``pages.py`` and new JSON endpoints in ``api.py``.
+"""
+
+import os
+import sys
+
+from flask import Flask, jsonify, render_template, request
+from flask_login import current_user, login_required, login_user, logout_user
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+import db  # noqa: E402
+import seed  # noqa: E402
+from api import api  # noqa: E402
+from auth import (  # noqa: E402
+    LOGIN_ENDPOINT,
+    SECRET_KEY,
+    Role,
+    User,
+    authenticate_bearer_token,
+    create_bearer_token,
+    login_manager,
+    roles_required,
+    wants_json,
 )
-import db
-from enum import StrEnum
+from pages import pages  # noqa: E402
 
-app = Flask(__name__, template_folder="../frontend", static_folder="../frontend/static")
+app = Flask(
+    __name__, template_folder="../frontend", static_folder="../frontend/static"
+)
 
-app.config["SECRET_KEY"] = "your_secret_key_here" 
+app.config["SECRET_KEY"] = SECRET_KEY
 
-login_manager = LoginManager()
 login_manager.init_app(app)
-TOKEN_MAX_AGE = 86400
-token_serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+login_manager.login_view = LOGIN_ENDPOINT
+
+app.register_blueprint(pages)
+app.register_blueprint(api)
 
 db.init_db()
 
-class Role(StrEnum):
-    ADMIN = "admin"
-    ORGANIZER = "organizer"
-    JUDGE = "judge"
-    PARTICIPANT = "participant"
-    VISITOR = "visitor"
+
+@app.context_processor
+def template_helpers():
+    """Things templates need and should not compute themselves."""
+    return {
+        "utc_now": lambda: db.format_ts(db.utcnow_iso()),
+        "event_window": db.event_window,
+    }
 
 
-class User(UserMixin):
-    def __init__(self, user_id, email, role, is_active=True):
-        self.id = user_id
-        self.email = email
-        self.role = Role(role)
-        self._is_active = bool(is_active)
-
-    @property
-    def is_active(self):
-        return self._is_active
-
-    def has_role(self, *roles):
-        return self.role in {Role(role) for role in roles}
+@app.template_filter("datetime")
+def datetime_filter(value):
+    """ISO 8601 in the database, '1 Mar 2026, 18:00 UTC' on the page."""
+    return db.format_ts(value)
 
 
-class Visitor(AnonymousUserMixin):
-    role = Role.VISITOR
+@app.before_request
+def accept_bearer_header():
+    """A bearer token authenticates any request, not just decorated ones.
 
-    def has_role(self, *roles):
-        return Role.VISITOR in {Role(role) for role in roles}
-
-
-login_manager.anonymous_user = Visitor
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    row = db.get_user_by_id(user_id)
-    if row is None:
-        return None
-
-    return User(row[0], row[1], row[3], row[4])
+    The acceptance checker attaches one header and never logs in, and curl
+    should behave the same way as a browser session. An explicit
+    ``Authorization`` header wins over a session cookie: the identity you
+    present is the identity you get, which is the only predictable rule when
+    both are in play.
+    """
+    if request.headers.get("Authorization", "").startswith("Bearer "):
+        authenticate_bearer_token()
+    return None
 
 
-@login_manager.unauthorized_handler
-def unauthorized():
-    return {"message": "Authentication required"}, 401
+# --------------------------------------------------------------------------
+# routes that were here before the DOGFOOD build, urls and payloads unchanged
+# --------------------------------------------------------------------------
 
 
-def create_bearer_token(user):
-    return token_serializer.dumps({"user_id": str(user.id), "role": user.role.value})
-
-
-def authenticate_bearer_token():
-    authorization = request.headers.get("Authorization", "")
-    if not authorization.startswith("Bearer "):
-        return False
-
-    token = authorization.removeprefix("Bearer ").strip()
-    try:
-        payload = token_serializer.loads(token, max_age=TOKEN_MAX_AGE)
-    except (BadSignature, SignatureExpired):
-        return False
-
-    user = load_user(payload.get("user_id", ""))
-    if user is None or user.role.value != payload.get("role"):
-        return False
-
-    login_user(user)
-    return True
-
-
-def roles_required(*roles):
-    def decorator(view):
-        @wraps(view)
-        def wrapped_view(*args, **kwargs):
-            authenticate_bearer_token()
-            if not current_user.is_authenticated:
-                return unauthorized()
-            if not current_user.has_role(*roles):
-                return {"message": "Insufficient permissions"}, 403
-            return view(*args, **kwargs)
-
-        return wrapped_view
-
-    return decorator
-
-
-@app.route('/')
-def home():
-    return render_template("index.html")
-
-@app.route("/api/v1/create_event",methods=["POST"])
+@app.route("/api/v1/create_event", methods=["POST"])
 @roles_required("admin", "organizer")
 def create_event():
     data = request.get_json()
@@ -129,14 +103,15 @@ def create_event():
 
     return {"message": "Event created successfully"}, 201
 
-@app.route("/api/v1/get_events",methods=["GET"])
+
+@app.route("/api/v1/get_events", methods=["GET"])
 def get_events():
     events = db.get_events()
     return {"events": events}, 200
 
 
 @app.route("/api/v1/delete_event/<int:event_id>", methods=["DELETE"])
-@roles_required("admin", "organizer") # Check if same organizer created the event
+@roles_required("admin", "organizer")  # Check if same organizer created the event
 def delete_event(event_id):
     # Call the database function to delete the event
     try:
@@ -145,6 +120,7 @@ def delete_event(event_id):
         return {"message": str(e)}, 404
 
     return {"message": "Event deleted successfully"}, 200
+
 
 @app.post("/api/v1/login")
 def login():
@@ -157,7 +133,11 @@ def login():
     ):
         return {"message": "Invalid credentials"}, 401
 
-    login_user(User(user[0], user[1], user[3], user[4]))
+    logged_in = User(user[0], user[1], user[3], user[4])
+    login_user(logged_in)
+    db.log_action(
+        "auth.login", f"{user[1]} signed in", actor=logged_in
+    )
 
     return {
         "message": "Logged in successfully",
@@ -166,6 +146,8 @@ def login():
             "email": user[1],
             "role": user[3],
         },
+        # Bearer form of the same session, for curl and for the checker.
+        "token": create_bearer_token(logged_in),
     }, 200
 
 
@@ -200,16 +182,113 @@ ROLE_PERMISSIONS = {
 }
 
 
+# --------------------------------------------------------------------------
+# errors: JSON for the API, a real page for a human
+# --------------------------------------------------------------------------
+
+
+def error_response(status, message):
+    if wants_json():
+        return jsonify({"message": message}), status
+    return (
+        render_template("error.html", status=status, message=message),
+        status,
+    )
+
+
+@app.errorhandler(400)
+def bad_request(error):
+    return error_response(400, getattr(error, "description", "Bad request"))
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return error_response(403, getattr(error, "description", "Forbidden"))
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return error_response(404, getattr(error, "description", "Page not found"))
+
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return error_response(405, getattr(error, "description", "Method not allowed"))
+
+
+@app.errorhandler(500)
+def server_error(error):
+    return error_response(500, "Internal server error")
+
+
+# --------------------------------------------------------------------------
+# boot
+# --------------------------------------------------------------------------
+
+
+def ensure_seeded():
+    """Import fixtures.json on first boot so the portal is never empty.
+
+    Idempotent: with an event already in the database this does nothing, so a
+    restart never overwrites what a participant typed.
+    """
+    if db.get_primary_event() is not None:
+        return False
+    if not os.path.exists(seed.FIXTURES_PATH):
+        print(
+            f"boot: no event in the database and no fixtures at "
+            f"{seed.FIXTURES_PATH}; create one at /events",
+            file=sys.stderr,
+        )
+        return False
+    print(f"boot: empty database, importing {seed.FIXTURES_PATH}")
+    seed.seed(verbose=True)
+    return True
+
+
 def print_development_tokens():
-    print("Development bearer tokens (valid for 24 hours):")
-    for role in (Role.ADMIN, Role.ORGANIZER, Role.JUDGE, Role.PARTICIPANT):
-        email = f"{role.value}@example.local"
-        row = db.get_or_create_user(email, "change-me", role.value)
-        user = User(row[0], row[1], row[3], row[4])
-        print(f"{role.value}: Bearer {create_bearer_token(user)}")
-    print("visitor: anonymous (no bearer token)")
+    """Print what to log in with, and the headers for .dogfood.toml."""
+    print("-" * 72)
+    try:
+        seed.print_credentials()
+    except SystemExit as error:  # no seeded identities yet
+        print(f"boot: {error}")
+    print("-" * 72)
+
+
+def serve(host, port, debug):
+    """waitress when it is installed, the Flask development server when you
+    ask for it (or when waitress is missing)."""
+    if debug:
+        print(f"Flask development server on http://{host}:{port} (debug=1)")
+        app.run(host=host, port=port, debug=True, use_reloader=True)
+        return
+
+    try:
+        from waitress import serve as waitress_serve
+    except ImportError:
+        print(
+            "waitress is not installed, falling back to the Flask development "
+            "server (pip install -r requirements.txt)"
+        )
+        app.run(host=host, port=port, debug=False, use_reloader=False)
+        return
+
+    print(f"waitress serving http://{host}:{port}")
+    waitress_serve(app, host=host, port=port, threads=8)
 
 
 if __name__ == "__main__":
+    # The boot log carries the acceptance headers, so it must not sit in a
+    # buffer when stdout is a pipe (`docker compose logs`, a CI capture).
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
+    ensure_seeded()
     print_development_tokens()
-    app.run(debug=True, use_reloader=False)
+    serve(
+        host=os.environ.get("DOGFOOD_HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT") or os.environ.get("DOGFOOD_PORT") or 8080),
+        debug=os.environ.get("DOGFOOD_DEBUG", "0") == "1",
+    )

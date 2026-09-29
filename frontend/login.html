@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "macros.html" import role_badge %}
+
+{% block title %}Sign in{% endblock %}
+
+{% block content %}
+  <div class="split" style="max-width:960px;margin:0 auto">
+    <section class="card">
+      <h1 style="font-size:1.3rem">Sign in</h1>
+      <p class="sub muted">
+        Sessions are a signed Flask cookie. The same identities also accept a
+        bearer token, which is what <code>.dogfood.toml</code> hands to the
+        acceptance checker.
+      </p>
+
+      {% if error %}
+        <div class="notice closed" style="margin-bottom:1rem">
+          <strong>{{ error.message }}</strong>
+        </div>
+      {% endif %}
+
+      <form class="form-grid" method="post" action="{{ url_for('pages.login_page') }}">
+        <input type="hidden" name="next" value="{{ next }}" />
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required autocomplete="username"
+                 placeholder="tomas.varga@example.org" />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required
+                 autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <div class="button-row">
+          <button type="submit">Sign in</button>
+          <a class="button ghost" href="{{ url_for('pages.home') }}">Cancel</a>
+        </div>
+      </form>
+
+      <p class="faint" style="margin-top:1rem;margin-bottom:0">
+        Programmatic login: <code>POST /api/v1/login</code> with
+        <code>{"email": …, "password": …}</code> returns a session cookie and a
+        bearer token.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Seeded accounts</h2>
+      <p class="small muted">
+        Every account imported from <code>fixtures.json</code> — 30 judges and
+        91 participants — plus the four demo accounts below, share the seeded
+        demo password <code>{{ demo_password }}</code>. Change it with
+        <code>DOGFOOD_SEED_PASSWORD</code>, or turn the seeded acceptance tokens
+        off with <code>DOGFOOD_STATIC_TOKENS=0</code>.
+      </p>
+      <div class="table-wrap" style="border:none">
+        <table>
+          <thead><tr><th>Identity</th><th>Email</th><th>Role</th></tr></thead>
+          <tbody>
+            {% for account in demo_accounts %}
+              <tr>
+                <td>
+                  <code class="faint">{{ account.label }}</code>
+                  {% if account.name %}<div class="small">{{ account.name }}</div>{% endif %}
+                </td>
+                <td class="mono small">{{ account.email }}</td>
+                <td>{{ role_badge(account.role) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="faint" style="margin-bottom:0">
+        The same four headers the checker uses are printed on every boot and
+        live in <code>.dogfood.toml</code>.
+      </p>
+    </section>
+  </div>
+{% endblock %}

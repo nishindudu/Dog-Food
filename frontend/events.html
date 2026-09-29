@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "macros.html" import window_pill, empty_state %}
+
+{% block title %}Events{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Events</h1>
+      <p class="sub">
+        {{ events | length }} event{{ '' if events | length == 1 else 's' }} in the database.
+        The one marked <em>running</em> is what the gallery, the teams and the
+        submissions belong to.
+      </p>
+    </div>
+  </div>
+
+  {% if events %}
+    <div class="table-wrap" style="margin-bottom:1rem">
+      <table>
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Date</th>
+            <th>Location</th>
+            <th>Submission window</th>
+            <th class="num">Tracks</th>
+            <th class="num">Prizes</th>
+            <th class="num">Teams</th>
+            <th class="num">Projects</th>
+            {% if can_manage %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in events %}
+            <tr>
+              <td>
+                <strong>{{ item.event_name }}</strong>
+                {% if item.is_primary %}<span class="chip">running</span>{% endif %}
+                {% if item.external_id %}<div class="faint mono">{{ item.external_id }}</div>{% endif %}
+                {% if item.description %}<div class="faint">{{ item.description }}</div>{% endif %}
+              </td>
+              <td class="nowrap">{{ item.event_date | datetime or "—" }}</td>
+              <td>{{ item.event_location or "not set" }}</td>
+              <td>{{ window_pill(event_window(item)) }}</td>
+              <td class="num">{{ item.tracks | length }}</td>
+              <td class="num">{{ item.prizes | length }}</td>
+              <td class="num">{{ item.team_count }}</td>
+              <td class="num">{{ item.project_count }}</td>
+              {% if can_manage %}
+                <td class="nowrap">
+                  {% if not item.is_primary %}
+                    <form method="post" style="display:inline"
+                          action="{{ url_for('pages.make_primary', event_id=item.id) }}">
+                      <button type="submit" class="link">make running</button>
+                    </form>
+                  {% endif %}
+                  <form method="post" style="display:inline"
+                        action="{{ url_for('pages.delete_event', event_id=item.id) }}">
+                    <button type="submit" class="link"
+                            data-confirm="Delete {{ item.event_name }} and every team, project and score in it?">delete</button>
+                  </form>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("No events", "Create the first one below, or import fixtures.json.") }}
+  {% endif %}
+
+  {% if can_manage %}
+    <section class="card">
+      <h2>Create an event</h2>
+      <p class="faint">
+        Dates, tracks and prizes are all configurable here. A new event does not
+        become the running one automatically — mark it afterwards, so the public
+        gallery keeps showing the event people are looking at.
+      </p>
+      <form class="form-grid" method="post" action="{{ url_for('pages.create_event') }}" data-repeatable>
+        <div class="form-grid cols-2">
+          <div class="field">
+            <label for="event_name">Name</label>
+            <input id="event_name" name="event_name" type="text" required maxlength="120"
+                   placeholder="Winter Build 2027" />
+          </div>
+          <div class="field">
+            <label for="event_location">Location</label>
+            <input id="event_location" name="event_location" type="text" maxlength="120"
+                   placeholder="Online, or a city" />
+          </div>
+          <div class="field">
+            <label for="event_date">Event date</label>
+            <input id="event_date" name="event_date" type="datetime-local" required />
+          </div>
+          <div class="field">
+            <label for="submissions_open">Submissions open</label>
+            <input id="submissions_open" name="submissions_open" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="submissions_close">Submissions close</label>
+            <input id="submissions_close" name="submissions_close" type="datetime-local" required />
+            <span class="help">From this instant the backend refuses new and edited submissions.</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="3"
+                    placeholder="What this event is for, who it is open to, what happens on the day."></textarea>
+        </div>
+
+        <fieldset data-repeat-group="tracks">
+          <legend>Tracks</legend>
+          <div data-repeat-template class="repeat-row">
+            <input type="text" name="track_name" placeholder="Track name" maxlength="80" />
+            <input type="text" name="track_description" placeholder="What belongs in this track (optional)" maxlength="200" />
+            <button type="button" class="ghost" data-repeat-remove>Remove</button>
+          </div>
+          <button type="button" class="ghost" data-repeat-add>Add track</button>
+        </fieldset>
+
+        <fieldset data-repeat-group="prizes">
+          <legend>Prizes</legend>
+          <div data-repeat-template class="repeat-row prize">
+            <input type="text" name="prize_name" placeholder="Prize" maxlength="80" />
+            <input type="text" name="prize_amount" placeholder="Amount" maxlength="40" />
+            <input type="text" name="prize_detail" placeholder="What it is for (optional)" maxlength="200" />
+            <button type="button" class="ghost" data-repeat-remove>Remove</button>
+          </div>
+          <button type="button" class="ghost" data-repeat-add>Add prize</button>
+        </fieldset>
+
+        <div class="button-row">
+          <button type="submit">Create event</button>
+          <span class="faint">
+            Also available as <code>POST /api/v1/events</code> with a JSON body.
+          </span>
+        </div>
+      </form>
+    </section>
+  {% else %}
+    <p class="faint">
+      Creating and deleting events needs the organizer or admin role.
+      <a href="{{ url_for('pages.login_page', next='/events') }}">Sign in</a> with a
+      seeded organizer account to try it.
+    </p>
+  {% endif %}
+{% endblock %}

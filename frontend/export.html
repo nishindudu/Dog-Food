@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "macros.html" import stat_card %}
+
+{% block title %}Export{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>Export</h1>
+      <p class="sub">
+        One CSV of everything an organizer needs after judging: every project,
+        every score row, one line each. Staff only — the endpoint answers
+        <code>403</code> to a participant, a judge or a visitor.
+      </p>
+    </div>
+    <div class="actions">
+      <a class="button" href="/api/v1/export.csv">Download results CSV</a>
+    </div>
+  </div>
+
+  {% if stats %}
+    <div class="grid cols-4" style="margin-bottom:1rem">
+      {{ stat_card("Projects", stats.projects, stats.duplicates_flagged ~ " flagged as duplicates") }}
+      {{ stat_card("Score rows", stats.scores, stats.judges_with_scores ~ " judges contributed") }}
+      {{ stat_card("Submitted", stats.submitted, stats.drafts ~ " drafts included in the export") }}
+      {{ stat_card("Teams", stats.teams, stats.tracks ~ " tracks") }}
+    </div>
+  {% endif %}
+
+  <div class="split">
+    <section class="card">
+      <h2>Columns</h2>
+      <p class="small muted">
+        Long format: one row per project × score. A project nobody reviewed
+        still appears once with empty score columns, so the gaps are visible
+        instead of silently missing. Criterion columns are derived from the
+        data, because the rubric is not fixed — with the shipped fixtures they
+        are <code>criterion_functionality</code>, <code>criterion_innovation</code>
+        and <code>criterion_quality</code>.
+      </p>
+      <p class="small mono" style="white-space:pre-wrap;color:var(--ink-faint)">project_id, project_external_id, title, team, track,
+status, duplicate_of, submitted_at,
+criterion_&lt;name&gt;…, score_total, score_average, review_count,
+judge_id, judge_external_id, judge_email, judge_name, comment</p>
+      <p class="small faint" style="margin-bottom:0">
+        <code>score_total</code> and <code>score_average</code> are the plain sum
+        and mean of one judge's criteria. They are not normalized across judges
+        and they are not weighted: that is T2 work and it is not claimed.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Getting it with curl</h2>
+      <p class="small muted">
+        The checker attaches an organizer header and expects a <code>200</code>
+        with a comma in the first line:
+      </p>
+      <pre class="mono small" style="background:var(--surface-alt);padding:.75rem;border-radius:8px;overflow-x:auto">curl -i \
+  -H "Authorization: Bearer &lt;organizer token&gt;" \
+  http://localhost:8080/api/v1/export.csv</pre>
+      <p class="small faint">
+        Tokens are printed when the portal boots and written into
+        <code>.dogfood.toml</code> by
+        <code>python3 backend/seed.py --write-config</code>.
+      </p>
+    </section>
+  </div>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty_state %}
+
+{% block title %}{{ "Edit submission" if project else "Submit a project" }}{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>{{ "Edit " ~ project.title if project else "Submit a project" }}</h1>
+      <p class="sub">
+        {% if project %}
+          Draft and edit are allowed until the deadline. After it, the backend
+          refuses every write to this submission.
+        {% else %}
+          One submission per team per track is enough to be judged. Save it as
+          a draft and come back, or submit it straight away.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="notice closed" style="margin-bottom:1rem">
+      <strong>{{ error.message }}.</strong>
+      {% if error.detail %} {{ error.detail }}{% endif %}
+    </div>
+  {% endif %}
+
+  {% if not open_for_submissions %}
+    <div class="notice closed" style="margin-bottom:1rem">
+      <strong>{{ window.message }}</strong>
+      The form below is disabled and the backend answers
+      <code>403</code> to any <code>POST</code> — this is the deadline rule,
+      enforced in <code>actions.submit_project</code>, not in the browser.
+    </div>
+  {% endif %}
+
+  {% if not team and not (current_user.has_role('admin', 'organizer')) %}
+    {{ empty_state("You need a team first",
+                   "Create a team or join one with an invite link. Submissions belong to a team, not to a person.",
+                   "Go to teams", url_for('pages.teams_page')) }}
+  {% else %}
+    <div class="split">
+      <section class="card">
+        <form
+          class="form-grid"
+          method="post"
+          action="{{ url_for('pages.edit_submission', project_id=project.id) if project else url_for('pages.new_submission') }}"
+          data-project-form
+        >
+          <div class="field">
+            <label for="title">Project title</label>
+            <input id="title" name="title" type="text" required maxlength="120"
+                   value="{{ values.title }}"
+                   placeholder="Quiet Hours" {{ 'disabled' if not open_for_submissions }} />
+            <span class="help">Up to 120 characters. This is what the public gallery shows.</span>
+          </div>
+
+          <div class="field">
+            <label for="track">Track</label>
+            <select id="track" name="track" {{ 'disabled' if not open_for_submissions }}>
+              <option value="">No track</option>
+              {% for track in tracks %}
+                {% set selected_id = (track.external_id or track.id | string) %}
+                <option value="{{ selected_id }}"
+                  {{ 'selected' if values.track == selected_id }}>
+                  {{ track.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <span class="help">{{ tracks | length }} tracks are configured for this event.</span>
+          </div>
+
+          <div class="field">
+            <label for="summary">One line summary</label>
+            <textarea id="summary" name="summary" rows="2" maxlength="240"
+                      data-counter="summary-count"
+                      placeholder="What it does, in one line."
+                      {{ 'disabled' if not open_for_submissions }}>{{ values.summary }}</textarea>
+            <span class="help"><span id="summary-count">0</span>/240 characters</span>
+          </div>
+
+          <div class="field">
+            <label for="description">Details for the judges</label>
+            <textarea id="description" name="description" rows="6"
+                      placeholder="What you built, how it works, what you would do with another 72 hours."
+                      {{ 'disabled' if not open_for_submissions }}>{{ values.description }}</textarea>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="field">
+              <label for="repo_url">Repository url</label>
+              <input id="repo_url" name="repo_url" type="url"
+                     value="{{ values.repo_url }}"
+                     placeholder="https://github.com/you/project"
+                     {{ 'disabled' if not open_for_submissions }} />
+            </div>
+            <div class="field">
+              <label for="demo_url">Demo url (optional)</label>
+              <input id="demo_url" name="demo_url" type="url"
+                     value="{{ values.demo_url }}"
+                     placeholder="https://demo.example.org"
+                     {{ 'disabled' if not open_for_submissions }} />
+            </div>
+          </div>
+
+          <div class="button-row" style="margin-top:.3rem">
+            <button type="submit" name="status" value="draft" class="ghost"
+                    {{ 'disabled' if not open_for_submissions }}>
+              Save as draft
+            </button>
+            <button type="submit" name="status" value="submitted"
+                    data-confirm="Submit this project to the judges?"
+                    {{ 'disabled' if not open_for_submissions }}>
+              {{ "Save changes" if project and project.status == 'submitted' else "Submit project" }}
+            </button>
+            {% if project %}
+              <a class="button ghost" href="{{ url_for('pages.project_detail', project_id=project.id) }}">Cancel</a>
+            {% else %}
+              <a class="button ghost" href="{{ url_for('pages.gallery') }}">Cancel</a>
+            {% endif %}
+          </div>
+        </form>
+      </section>
+
+      <div class="stack">
+        <section class="card">
+          <h2>Submitting as</h2>
+          <dl class="kv">
+            <dt>Team</dt>
+            <dd><a href="{{ url_for('pages.team_detail', team_id=team.id) }}">{{ team.name }}</a></dd>
+            <dt>Members</dt>
+            <dd>{{ team.members | length }}</dd>
+            <dt>Signed in</dt>
+            <dd>{{ current_user.email }}</dd>
+            <dt>Window</dt>
+            <dd>{{ window.message }}</dd>
+          </dl>
+        </section>
+
+        {% if project %}
+          <section class="card">
+            <h2>This submission</h2>
+            <dl class="kv">
+              <dt>Status</dt>
+              <dd><span class="pill pill-{{ project.status }}">{{ project.status }}</span></dd>
+              <dt>Submitted</dt>
+              <dd>{{ project.submitted_at_text or "not yet" }}</dd>
+              <dt>Last edited</dt>
+              <dd>{{ project.updated_at_text or "—" }}</dd>
+              {% if project.external_id %}
+                <dt>Fixture id</dt>
+                <dd><code>{{ project.external_id }}</code></dd>
+              {% endif %}
+            </dl>
+          </section>
+        {% endif %}
+
+        {% if my_projects %}
+          <section class="card">
+            <h2>Your submissions</h2>
+            <ul class="list-plain">
+              {% for item in my_projects %}
+                <li>
+                  <a href="{{ url_for('pages.project_detail', project_id=item.id) }}">{{ item.title }}</a>
+                  <span class="pill pill-{{ item.status }}">{{ item.status }}</span>
+                  <div class="faint">edited {{ item.updated_at_text }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

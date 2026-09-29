@@ -1,221 +1,146 @@
-const state = {
-  users: [
-    { id: 1, name: "Ava Organizer", email: "ava@hack.io", role: "organizer" },
-    { id: 2, name: "Liam Judge", email: "liam@hack.io", role: "judge" },
-  ],
-  events: [
-    {
-      id: 1,
-      name: "HackFest 2026",
-      date: "2026-11-20",
-      location: "Bangalore",
-      description: "48-hour product hackathon for student builders.",
-    },
-  ],
-  projects: [
-    { id: 1, teamName: "CodeStorm", title: "MediAssist AI", track: "Health" },
-  ],
-  scores: [],
-};
+/* Dog-Food portal — progressive enhancement only.
+ *
+ * Every page is rendered by Flask from the database, and every form is a real
+ * POST that works with JavaScript disabled. Nothing here holds data: this file
+ * only makes the server-rendered pages nicer to use.
+ */
 
-let idCounter = 2;
+(function () {
+  "use strict";
 
-function nextId() {
-  idCounter += 1;
-  return idCounter;
-}
-
-function avgProjectScore(projectId) {
-  const projectScores = state.scores.filter((score) => score.projectId === projectId);
-  if (projectScores.length === 0) return "N/A";
-
-  const total = projectScores.reduce((sum, current) => sum + current.total, 0);
-  return (total / projectScores.length).toFixed(2);
-}
-
-function renderStats() {
-  const statsRoot = document.getElementById("stats");
-  const uniqueJudges = new Set(state.scores.map((score) => score.judgeName));
-
-  const blocks = [
-    ["Users", state.users.length],
-    ["Events", state.events.length],
-    ["Projects", state.projects.length],
-    ["Judges Active", uniqueJudges.size],
-  ];
-
-  statsRoot.innerHTML = blocks
-    .map(
-      ([label, value]) => `
-      <div class="stat">
-        <div>${label}</div>
-        <div class="stat-value">${value}</div>
-      </div>`
-    )
-    .join("");
-}
-
-function renderUsers() {
-  const table = document.getElementById("users-table");
-  table.innerHTML = state.users
-    .map(
-      (user) => `
-      <tr>
-        <td>${user.name}</td>
-        <td>${user.email}</td>
-        <td>${user.role}</td>
-        <td><button data-user-delete="${user.id}">Remove</button></td>
-      </tr>`
-    )
-    .join("");
-}
-
-function renderEvents() {
-  const list = document.getElementById("events-list");
-  list.innerHTML = state.events
-    .map(
-      (event) => `
-      <article class="list-item">
-        <strong>${event.name}</strong><br />
-        ${event.date} • ${event.location}
-        <p>${event.description}</p>
-      </article>`
-    )
-    .join("");
-}
-
-function renderProjects() {
-  const table = document.getElementById("projects-table");
-  table.innerHTML = state.projects
-    .map(
-      (project) => `
-      <tr>
-        <td>${project.teamName}</td>
-        <td>${project.title}</td>
-        <td>${project.track}</td>
-        <td>${avgProjectScore(project.id)}</td>
-      </tr>`
-    )
-    .join("");
-
-  const scoreSelect = document.getElementById("score-project");
-  scoreSelect.innerHTML =
-    '<option value="">Select project</option>' +
-    state.projects
-      .map((project) => `<option value="${project.id}">${project.title}</option>`)
-      .join("");
-}
-
-function renderScores() {
-  const table = document.getElementById("scores-table");
-  table.innerHTML = state.scores
-    .map((score) => {
-      const project = state.projects.find((item) => item.id === score.projectId);
-      return `
-      <tr>
-        <td>${project ? project.title : "Unknown project"}</td>
-        <td>${score.judgeName}</td>
-        <td>${score.innovation}</td>
-        <td>${score.execution}</td>
-        <td>${score.impact}</td>
-        <td>${score.total}</td>
-      </tr>`;
-    })
-    .join("");
-}
-
-function renderAll() {
-  renderStats();
-  renderUsers();
-  renderEvents();
-  renderProjects();
-  renderScores();
-}
-
-function handleRoleForm() {
-  const form = document.getElementById("role-form");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const name = document.getElementById("user-name").value.trim();
-    const email = document.getElementById("user-email").value.trim();
-    const role = document.getElementById("user-role").value;
-
-    state.users.push({ id: nextId(), name, email, role });
-    form.reset();
-    renderAll();
-  });
-
-  document.getElementById("users-table").addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-user-delete]");
-    if (!button) return;
-
-    const userId = Number(button.dataset.userDelete);
-    state.users = state.users.filter((user) => user.id !== userId);
-    renderAll();
-  });
-}
-
-function handleEventForm() {
-  const form = document.getElementById("event-form");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const name = document.getElementById("event-name").value.trim();
-    const date = document.getElementById("event-date").value;
-    const location = document.getElementById("event-location").value.trim();
-    const description = document.getElementById("event-description").value.trim();
-
-    state.events.push({ id: nextId(), name, date, location, description });
-    form.reset();
-    renderAll();
-  });
-}
-
-function handleProjectForm() {
-  const form = document.getElementById("project-form");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const teamName = document.getElementById("team-name").value.trim();
-    const title = document.getElementById("project-title").value.trim();
-    const track = document.getElementById("project-track").value.trim();
-
-    state.projects.push({ id: nextId(), teamName, title, track });
-    form.reset();
-    renderAll();
-  });
-}
-
-function handleScoreForm() {
-  const form = document.getElementById("score-form");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const projectId = Number(document.getElementById("score-project").value);
-    const judgeName = document.getElementById("judge-name").value.trim();
-    const innovation = Number(document.getElementById("innovation-score").value);
-    const execution = Number(document.getElementById("execution-score").value);
-    const impact = Number(document.getElementById("impact-score").value);
-    const total = innovation + execution + impact;
-
-    state.scores.push({
-      id: nextId(),
-      projectId,
-      judgeName,
-      innovation,
-      execution,
-      impact,
-      total,
+  /* Filters that apply themselves: selects and checkboxes straight away,
+     text search after a short pause so typing does not fire a request per
+     character. */
+  function initAutoSubmit() {
+    document.querySelectorAll("form[data-autosubmit]").forEach(function (form) {
+      form.querySelectorAll("select, input[type=checkbox]").forEach(function (field) {
+        field.addEventListener("change", function () {
+          form.submit();
+        });
+      });
+      form.querySelectorAll("input[type=search], input[type=text]").forEach(function (field) {
+        let timer = null;
+        field.addEventListener("input", function () {
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            form.submit();
+          }, 400);
+        });
+        field.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            clearTimeout(timer);
+            form.submit();
+          }
+        });
+      });
     });
+  }
 
-    form.reset();
-    renderAll();
+  /* Copy an invite link without selecting it by hand. */
+  function initCopyButtons() {
+    document.querySelectorAll("button[data-copy]").forEach(function (button) {
+      button.addEventListener("click", async function () {
+        const target = document.querySelector(button.dataset.copy);
+        if (!target) return;
+        const label = button.textContent;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(target.value);
+          } else {
+            target.select();
+            document.execCommand("copy");
+            window.getSelection().removeAllRanges();
+          }
+          button.textContent = "Copied";
+        } catch (error) {
+          button.textContent = "Select and copy";
+        }
+        setTimeout(function () {
+          button.textContent = label;
+        }, 1800);
+      });
+    });
+  }
+
+  /* Destructive buttons ask first. */
+  function initConfirm() {
+    document.querySelectorAll("[data-confirm]").forEach(function (element) {
+      const form = element.closest("form");
+      if (!form) return;
+      form.addEventListener("submit", function (event) {
+        if (!window.confirm(element.dataset.confirm)) {
+          event.preventDefault();
+        }
+      });
+    });
+  }
+
+  /* Character counters under textareas. */
+  function initCounters() {
+    document.querySelectorAll("[data-counter]").forEach(function (field) {
+      const output = document.getElementById(field.dataset.counter);
+      if (!output) return;
+      const update = function () {
+        output.textContent = String(field.value.length);
+      };
+      field.addEventListener("input", update);
+      update();
+    });
+  }
+
+  /* Repeatable rows: tracks and prizes on the event form. */
+  function initRepeatable() {
+    document.querySelectorAll("form[data-repeatable]").forEach(function (form) {
+      form.querySelectorAll("[data-repeat-group]").forEach(function (group) {
+        const template = group.querySelector("[data-repeat-template]");
+        if (!template) return;
+
+        const addRow = function () {
+          const row = template.cloneNode(true);
+          row.removeAttribute("data-repeat-template");
+          row.querySelectorAll("input").forEach(function (input) {
+            input.value = "";
+          });
+          template.after(row);
+          const first = row.querySelector("input");
+          if (first) first.focus();
+        };
+
+        group.querySelectorAll("[data-repeat-add]").forEach(function (button) {
+          button.addEventListener("click", addRow);
+        });
+
+        group.addEventListener("click", function (event) {
+          const remove = event.target.closest("[data-repeat-remove]");
+          if (!remove) return;
+          const row = remove.closest("[data-repeat-template]") ||
+            remove.parentElement;
+          if (row && row.parentElement) row.parentElement.removeChild(row);
+        });
+      });
+    });
+  }
+
+  /* Flash messages fade out on their own. */
+  function initFlashes() {
+    document.querySelectorAll(".flash").forEach(function (flash) {
+      setTimeout(function () {
+        flash.style.transition = "opacity .4s ease";
+        flash.style.opacity = "0";
+        setTimeout(function () {
+          flash.remove();
+        }, 400);
+      }, 6000);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initAutoSubmit();
+    initCopyButtons();
+    initConfirm();
+    initCounters();
+    initRepeatable();
+    initFlashes();
   });
-}
-
-handleRoleForm();
-handleEventForm();
-handleProjectForm();
-handleScoreForm();
-renderAll();
+})();

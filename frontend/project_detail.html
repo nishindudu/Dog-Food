@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "macros.html" import status_pill, project_card %}
+
+{% block title %}{{ project.title }}{% endblock %}
+
+{% block content %}
+  <nav class="faint" aria-label="Breadcrumb" style="margin-bottom:.6rem">
+    <a href="{{ url_for('pages.gallery') }}">Gallery</a> › {{ project.title }}
+  </nav>
+
+  <div class="page-head">
+    <div>
+      <h1>{{ project.title }}</h1>
+      <p class="sub">{{ project.summary or "No summary was given." }}</p>
+      <div class="chip-list">
+        {% if project.track_name %}<span class="chip">{{ project.track_name }}</span>{% endif %}
+        <a class="chip" href="{{ url_for('pages.team_detail', team_id=project.team_id) }}">Team {{ project.team_name }}</a>
+        {% if is_owner or is_staff %}{{ status_pill(project.status) }}{% endif %}
+        {% if project.duplicate_of %}
+          <span class="pill pill-upcoming">
+            flagged as a duplicate of project {{ project.duplicate_of }}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="actions">
+      {% if is_owner or is_staff %}
+        <a class="button" href="{{ url_for('pages.edit_submission', project_id=project.id) }}">Edit submission</a>
+      {% endif %}
+      {% if project.repo_url %}
+        <a class="button ghost" href="{{ project.repo_url }}" rel="noopener noreferrer nofollow">Repository</a>
+      {% endif %}
+      {% if project.demo_url %}
+        <a class="button ghost" href="{{ project.demo_url }}" rel="noopener noreferrer nofollow">Demo</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="stack">
+      <section class="card">
+        <h2>About this project</h2>
+        {% if project.description %}
+          <p style="white-space:pre-line">{{ project.description }}</p>
+        {% else %}
+          <p class="muted">
+            The team wrote a one line summary only. Fixtures ship a short
+            summary per project and no long description.
+          </p>
+        {% endif %}
+        <dl class="kv">
+          <dt>Track</dt>
+          <dd>
+            {% if project.track_name %}
+              <a href="{{ url_for('pages.gallery', track=project.track_external_id or project.track_id) }}">{{ project.track_name }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt>Submitted</dt>
+          <dd>{{ project.submitted_at_text or "not submitted yet" }}</dd>
+          <dt>Last edited</dt>
+          <dd>{{ project.updated_at_text or "—" }}</dd>
+          {% if project.external_id %}
+            <dt>Fixture id</dt>
+            <dd><code>{{ project.external_id }}</code></dd>
+          {% endif %}
+          {% if is_staff %}
+            <dt>Reviews</dt>
+            <dd>{{ project.review_count }} score row{{ '' if project.review_count == 1 else 's' }} in the database</dd>
+          {% endif %}
+        </dl>
+        {% if not is_staff %}
+          <p class="faint" style="margin-top:.8rem">
+            Scores are not published on the public gallery.
+          </p>
+        {% endif %}
+      </section>
+
+      {% if siblings | length > 1 %}
+        <section class="card">
+          <div class="card-head">
+            <h2>More from {{ project.team_name }}</h2>
+            <span class="right">{{ siblings | length }} submissions</span>
+          </div>
+          <div class="project-grid">
+            {% for other in siblings if other.id != project.id %}
+              {{ project_card(other, show_status=is_staff) }}
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    </div>
+
+    <div class="stack">
+      <section class="card">
+        <h2>Team</h2>
+        <p>
+          <a href="{{ url_for('pages.team_detail', team_id=project.team_id) }}">
+            <strong>{{ project.team_name }}</strong>
+          </a>
+        </p>
+        <ul class="list-plain">
+          {% for member in team.members %}
+            <li>
+              <strong>{{ member.name or member.email }}</strong>
+              {% if member.is_lead %}<span class="chip">lead</span>{% endif %}
+              {% if member.name %}<div class="faint">{{ member.email }}</div>{% endif %}
+            </li>
+          {% else %}
+            <li class="faint">No members recorded.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% if project.duplicate %}
+        <section class="card">
+          <h2>Duplicate flag</h2>
+          <p class="small muted">
+            This submission has the same team and repository as
+            <a href="{{ url_for('pages.project_detail', project_id=project.duplicate.id) }}">
+              {{ project.duplicate.title }}
+            </a>
+            (project {{ project.duplicate.id }}), so it is kept in the database
+            but hidden from the public gallery. Organizer view only.
+          </p>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
