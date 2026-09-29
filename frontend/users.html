@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Users | Hackathon Management Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Hackathon Management Platform</h1>
+        <p>User and role management</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/">Dashboard</a>
+        <a href="/users">Users</a>
+        <a href="/events">Events</a>
+        <a href="/projects">Projects</a>
+        <a href="/judging">Judging</a>
+      </nav>
+    </header>
+
+    <main class="container single-column">
+      <section class="card">
+        <h2>Role Management</h2>
+        <form id="role-form" class="form-grid">
+          <input type="text" id="user-name" placeholder="User name" required />
+          <input type="email" id="user-email" placeholder="Email" required />
+          <select id="user-role" required>
+            <option value="">Select role</option>
+            <option value="organizer">Organizer</option>
+            <option value="mentor">Mentor</option>
+            <option value="judge">Judge</option>
+            <option value="participant">Participant</option>
+          </select>
+          <button type="submit">Add User</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

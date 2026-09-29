@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Projects | Hackathon Management Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Hackathon Management Platform</h1>
+        <p>Team and project submissions</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/">Dashboard</a>
+        <a href="/users">Users</a>
+        <a href="/events">Events</a>
+        <a href="/projects">Projects</a>
+        <a href="/judging">Judging</a>
+      </nav>
+    </header>
+
+    <main class="container single-column">
+      <section class="card">
+        <h2>Teams & Projects</h2>
+        <form id="project-form" class="form-grid">
+          <input type="text" id="team-name" placeholder="Team name" required />
+          <input type="text" id="project-title" placeholder="Project title" required />
+          <input
+            type="text"
+            id="project-track"
+            placeholder="Track (AI, Web, Health...)"
+            required
+          />
+          <button type="submit">Add Project</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>Project</th>
+                <th>Track</th>
+                <th>Avg Score</th>
+              </tr>
+            </thead>
+            <tbody id="projects-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

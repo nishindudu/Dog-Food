@@ -22,11 +22,42 @@ header h1 {
   margin: 0 0 0.35rem;
 }
 
+.topbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  color: #dbeafe;
+  text-decoration: none;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #60a5fa;
+}
+
+.nav-links a:hover {
+  background: #1e40af;
+}
+
 .container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1rem;
   padding: 1rem;
+}
+
+.single-column {
+  grid-template-columns: minmax(320px, 960px);
+  justify-content: center;
 }
 
 .card {
@@ -97,6 +128,11 @@ td {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0.7rem;
+}
+
+.list-item a {
+  color: #1d4ed8;
+  font-weight: 600;
 }
 
 .stats-grid {

@@ -7,143 +7,48 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body>
-    <header>
-      <h1>Hackathon Management Platform</h1>
-      <p>Frontend prototype (HTML/CSS/JS) ready for Flask static hosting.</p>
+    <header class="topbar">
+      <div>
+        <h1>Hackathon Management Platform</h1>
+        <p>Manage hackathon users, events, projects and judging.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/">Dashboard</a>
+        <a href="/users">Users</a>
+        <a href="/events">Events</a>
+        <a href="/projects">Projects</a>
+        <a href="/judging">Judging</a>
+      </nav>
     </header>
 
-    <main class="container">
+    <main class="container single-column">
       <section class="card">
         <h2>Dashboard</h2>
         <div id="stats" class="stats-grid"></div>
       </section>
-
       <section class="card">
-        <h2>Role Management</h2>
-        <form id="role-form" class="form-grid">
-          <input type="text" id="user-name" placeholder="User name" required />
-          <input type="email" id="user-email" placeholder="Email" required />
-          <select id="user-role" required>
-            <option value="">Select role</option>
-            <option value="organizer">Organizer</option>
-            <option value="mentor">Mentor</option>
-            <option value="judge">Judge</option>
-            <option value="participant">Participant</option>
-          </select>
-          <button type="submit">Add User</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="users-table"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Event Creation</h2>
-        <form id="event-form" class="form-grid">
-          <input type="text" id="event-name" placeholder="Event title" required />
-          <input type="date" id="event-date" required />
-          <input type="text" id="event-location" placeholder="Location" required />
-          <textarea
-            id="event-description"
-            rows="3"
-            placeholder="Event description"
-            required
-          ></textarea>
-          <button type="submit">Create Event</button>
-        </form>
-        <div id="events-list" class="list-grid"></div>
-      </section>
-
-      <section class="card">
-        <h2>Teams & Projects</h2>
-        <form id="project-form" class="form-grid">
-          <input type="text" id="team-name" placeholder="Team name" required />
-          <input
-            type="text"
-            id="project-title"
-            placeholder="Project title"
-            required
-          />
-          <input
-            type="text"
-            id="project-track"
-            placeholder="Track (AI, Web, Health...)"
-            required
-          />
-          <button type="submit">Add Project</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Project</th>
-                <th>Track</th>
-                <th>Avg Score</th>
-              </tr>
-            </thead>
-            <tbody id="projects-table"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Judging</h2>
-        <form id="score-form" class="form-grid">
-          <select id="score-project" required>
-            <option value="">Select project</option>
-          </select>
-          <input type="text" id="judge-name" placeholder="Judge name" required />
-          <input
-            type="number"
-            id="innovation-score"
-            min="1"
-            max="10"
-            placeholder="Innovation (1-10)"
-            required
-          />
-          <input
-            type="number"
-            id="execution-score"
-            min="1"
-            max="10"
-            placeholder="Execution (1-10)"
-            required
-          />
-          <input
-            type="number"
-            id="impact-score"
-            min="1"
-            max="10"
-            placeholder="Impact (1-10)"
-            required
-          />
-          <button type="submit">Submit Score</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Project</th>
-                <th>Judge</th>
-                <th>Innovation</th>
-                <th>Execution</th>
-                <th>Impact</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody id="scores-table"></tbody>
-          </table>
+        <h2>Quick Navigation</h2>
+        <div class="list-grid">
+          <article class="list-item">
+            <strong>Users</strong>
+            <p>Create and manage organizers, mentors, judges and participants.</p>
+            <a href="/users">Open Users</a>
+          </article>
+          <article class="list-item">
+            <strong>Events</strong>
+            <p>Create events and review upcoming schedules.</p>
+            <a href="/events">Open Events</a>
+          </article>
+          <article class="list-item">
+            <strong>Projects</strong>
+            <p>Manage teams and project submissions with average scores.</p>
+            <a href="/projects">Open Projects</a>
+          </article>
+          <article class="list-item">
+            <strong>Judging</strong>
+            <p>Submit judging scores and review all submitted evaluations.</p>
+            <a href="/judging">Open Judging</a>
+          </article>
         </div>
       </section>
     </main>
